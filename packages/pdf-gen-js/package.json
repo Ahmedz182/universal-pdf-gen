@@ -1,6 +1,6 @@
 {
   "name": "pdf-gen-js",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "JavaScript/TypeScript PDF generation with templates",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -41,7 +41,11 @@
     "generation",
     "templates",
     "invoice",
-    "certificate"
+    "certificate",
+    "receipt",
+    "logo",
+    "svg",
+    "webp"
   ],
   "author": "Ahmed Fayyaz",
   "license": "MIT"
