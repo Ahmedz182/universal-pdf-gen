@@ -79,6 +79,7 @@ class Surface:
         fill: Optional[str] = None,
         stroke: Optional[str] = None,
         line_width: float = 1,
+        radius: float = 0,
     ) -> None:
         y = self._y(y_top) - height
         self.canvas.saveState()
@@ -88,7 +89,10 @@ class Surface:
             self.canvas.setStrokeColor(HexColor(stroke))
         if fill:
             self.canvas.setFillColor(HexColor(fill))
-        self.canvas.rect(x, y, width, height, fill=1 if fill else 0, stroke=1 if stroke else 0)
+        if radius > 0:
+            self.canvas.roundRect(x, y, width, height, radius, fill=1 if fill else 0, stroke=1 if stroke else 0)
+        else:
+            self.canvas.rect(x, y, width, height, fill=1 if fill else 0, stroke=1 if stroke else 0)
         self.canvas.restoreState()
 
     def line(

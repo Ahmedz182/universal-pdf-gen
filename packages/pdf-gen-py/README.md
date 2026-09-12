@@ -108,6 +108,22 @@ pdf.use_template('invoice', {
 
 Raster formats (including WEBP) are handled by Pillow via reportlab's `ImageReader` — no conversion needed. SVG is drawn as true vector paths via `svglib` — not rasterized — so it stays crisp. See [Logos & Images in the root README](../../README.md#logos--images) for the full picture, including a side-by-side comparison of all four formats.
 
+## Custom templates — build your own design
+
+Not limited to invoice/receipt/certificate — register any renderer function under any name:
+
+```python
+def render_business_card(surface, config, data, theme):
+    # surface.canvas gives you the raw reportlab canvas if needed
+    surface.rect(50, 50, 300, 150, fill=theme.primary, radius=10)
+    surface.text(70, 80, data['name'], font='Helvetica-Bold', size=18, color=theme.accent)
+
+pdf.register_template('business_card', render_business_card)
+pdf.use_template('business_card', {'name': 'Jane Doe'})
+```
+
+See [Custom Templates in the root README](../../README.md#custom-templates--build-your-own-design) for a full runnable example and screenshot.
+
 ## CLI Usage
 
 ```bash

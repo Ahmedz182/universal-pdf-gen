@@ -108,6 +108,22 @@ await pdf.useTemplate('invoice', {
 
 WEBP is transparently normalized to PNG via `sharp` (PDFKit has no native WEBP support). SVG is drawn as true vector paths via `svg-to-pdfkit` — not rasterized — so it stays crisp. See [Logos & Images in the root README](../../README.md#logos--images) for the full picture, including a side-by-side comparison of all four formats.
 
+## Custom templates — build your own design
+
+Not limited to invoice/receipt/certificate — register any renderer function under any name:
+
+```javascript
+pdf.registerTemplate('businessCard', (doc, config, data, theme) => {
+  // doc is the raw PDFKit document — full API available
+  doc.roundedRect(50, 50, 300, 150, 10).fill(theme.primary);
+  doc.fillColor(theme.accent).font('Helvetica-Bold').fontSize(18).text(data.name, 70, 80);
+});
+
+await pdf.useTemplate('businessCard', { name: 'Jane Doe' });
+```
+
+See [Custom Templates in the root README](../../README.md#custom-templates--build-your-own-design) for a full runnable example and screenshot.
+
 ## CLI Usage
 
 ```bash

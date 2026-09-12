@@ -101,6 +101,27 @@ class TestGenerator(unittest.TestCase):
             self.assertGreater(os.path.getsize(path), 1000, f'expected a non-empty PDF for .{ext} logo')
             os.remove(path)
 
+    def test_supports_fully_custom_templates_via_register_template(self):
+        from pdf_gen import Theme
+
+        pdf = PDFGenerator(theme=Theme(primary='#7a2048', accent='#d4af37'))
+        received = {}
+
+        def render_business_card(surface, config, data, theme):
+            received['theme'] = theme
+            surface.rect(50, 50, 300, 150, fill=theme.primary, radius=10)
+            surface.text(70, 80, data['name'], font='Helvetica-Bold', size=18, color=theme.accent)
+
+        pdf.register_template('business_card', render_business_card)
+        pdf.use_template('business_card', {'name': 'Jane Doe'})
+
+        self.assertEqual(received['theme'].primary, '#7a2048', 'custom theme should reach the custom template')
+
+        path = self._tmp_path('custom-template.pdf')
+        pdf.generate(path)
+        self.assertGreater(os.path.getsize(path), 500, 'expected a non-empty PDF from a fully custom template')
+        os.remove(path)
+
 
 if __name__ == '__main__':
     unittest.main()

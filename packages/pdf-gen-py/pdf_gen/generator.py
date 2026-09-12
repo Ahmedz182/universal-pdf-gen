@@ -98,6 +98,10 @@ class PDFGenerator:
         self.surface.line(x1, y1, x2, y2, color=color or self.theme.border, width=width)
         return self
 
+    def add_rect(self, x: float, y: float, width: float, height: float, fill: str = None, radius: float = 0) -> 'PDFGenerator':
+        self.surface.rect(x, y, width, height, fill=fill, stroke=None if fill else self.theme.border, radius=radius)
+        return self
+
     def set_font(self, font_name: str, size: int) -> 'PDFGenerator':
         self.canvas.setFont(font_name, size)
         return self

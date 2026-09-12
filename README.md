@@ -19,11 +19,12 @@ Generate invoices, receipts, and certificates that look like they came from a re
 9. [Configuration Options](#configuration-options)
 10. [Theming](#theming)
 11. [Logos & Images](#logos--images)
-12. [Multi-page Invoices & Pagination](#multi-page-invoices--pagination)
-13. [Project Structure](#project-structure)
-14. [Development & Tests](#development--tests)
-15. [Troubleshooting](#troubleshooting)
-16. [License](#license)
+12. [Custom Templates — Build Your Own Design](#custom-templates--build-your-own-design)
+13. [Multi-page Invoices & Pagination](#multi-page-invoices--pagination)
+14. [Project Structure](#project-structure)
+15. [Development & Tests](#development--tests)
+16. [Troubleshooting](#troubleshooting)
+17. [License](#license)
 
 ---
 
@@ -95,7 +96,7 @@ Both packages share the **same conceptual pipeline**:
 3. You call `useTemplate(name, data)` / `use_template(name, data)` with your data — the renderer handles layout, word-wrapping, currency/date formatting, and automatic pagination.
 4. You call `generate('file.pdf')` to write the file to disk (or get an in-memory buffer for HTTP responses).
 
-You can also skip templates entirely and draw directly with the low-level primitives (`addText`, `addTable`, `addLine`, `addRect`, `addImage`) if you need a fully custom layout.
+The 3 built-in templates are not the whole story — `registerTemplate`/`register_template` accepts **any** renderer function of your own, so you can design your own PDF from scratch and still get page-size resolution, theming, and the low-level drawing helpers (`addText`, `addTable`, `addLine`, `addRect`, `addImage`) for free. See [Custom Templates](#custom-templates--build-your-own-design) below.
 
 ---
 
@@ -103,6 +104,7 @@ You can also skip templates entirely and draw directly with the low-level primit
 
 - 🌐 **Multi-language** — first-class JavaScript/TypeScript and Python packages with matching APIs and matching visual output
 - 🧾 **3 professional templates** — Invoice, Receipt, Certificate — with a real visual hierarchy (banner headers, colored accents, striped tables), not plain black-and-white text dumps
+- 🎨 **Bring your own design** — register a fully custom template (business cards, tickets, reports, anything) and get theming, page-size resolution, and the drawing helpers for free — you're never locked into the 3 built-ins
 - 🖼 **Logos in PNG, JPG, WEBP, or SVG** — drop a `logo` field into any template; SVG is embedded as true vector paths (not rasterized), so it stays crisp at any size
 - 📐 **Configurable page setup** — A4, Letter, A3, A5, portrait or landscape, custom margins
 - 🎨 **Themeable** — override the primary color, accent color, table colors, etc. per document
@@ -478,6 +480,72 @@ pdf.add_image('logo.svg', 100, 50, width=80, height=80)
 
 ---
 
+## Custom Templates — Build Your Own Design
+
+The 3 built-in templates are just functions registered under a name — `Templates.register(pdf)` is literally three calls to `registerTemplate`/`register_template` under the hood. You can register your own the exact same way and build **any** design: a business card, a shipping label, a ticket, a multi-page report, anything.
+
+A custom template receives the same four arguments the built-ins do:
+
+- **JS**: `(doc, config, data, theme)` — `doc` is the raw [PDFKit document](http://pdfkit.org/docs/getting_started.html), so every PDFKit method (paths, gradients, clipping, custom fonts, `roundedRect`, etc.) is available.
+- **Python**: `(surface, config, data, theme)` — `surface` is the top-down coordinate wrapper (`surface.canvas` gives you the raw [reportlab canvas](https://docs.reportlab.com/reportlab/userguide/ch3_pdfgen/) if you need something `Surface` doesn't expose).
+
+Here's a complete, working example — a business card, rendered with your own theme colors, that has nothing to do with invoices/receipts/certificates:
+
+<img src="docs/screenshots/custom-template-business-card.png" alt="Fully custom business card template example" width="500" />
+
+**JavaScript:**
+
+```javascript
+const { PDFGenerator } = require('pdf-gen-js');
+
+const pdf = new PDFGenerator({ theme: { primary: '#7a2048', accent: '#d4af37' } });
+
+pdf.registerTemplate('businessCard', (doc, config, data, theme) => {
+  const w = 350, h = 200;
+  const x = (doc.page.width - w) / 2;
+  const y = (doc.page.height - h) / 2;
+
+  doc.roundedRect(x, y, w, h, 12).fill(theme.primary);
+  doc.fillColor(theme.accent).font('Helvetica-Bold').fontSize(20).text(data.name, x + 25, y + 30);
+  doc.fillColor('#ffffff').font('Helvetica').fontSize(11).text(data.title, x + 25, y + 58);
+});
+
+await pdf.useTemplate('businessCard', { name: 'Ahmed Fayyaz', title: 'Software Engineer' });
+await pdf.generate('card.pdf');
+```
+
+**Python:**
+
+```python
+from pdf_gen import PDFGenerator, Theme
+
+pdf = PDFGenerator(theme=Theme(primary='#7a2048', accent='#d4af37'))
+
+def render_business_card(surface, config, data, theme):
+    w, h = 350, 200
+    x = (surface.page_width - w) / 2
+    y_top = (surface.page_height - h) / 2
+
+    surface.rect(x, y_top, w, h, fill=theme.primary, radius=12)
+    surface.text(x + 25, y_top + 30, data['name'], font='Helvetica-Bold', size=20, color=theme.accent)
+    surface.text(x + 25, y_top + 58, data['title'], font='Helvetica', size=11, color='#ffffff')
+
+pdf.register_template('business_card', render_business_card)
+pdf.use_template('business_card', {'name': 'Ahmed Fayyaz', 'title': 'Software Engineer'})
+pdf.generate('card.pdf')
+```
+
+Run the full runnable versions of these:
+
+```bash
+node examples/custom-template.js
+python3 examples/custom_template.py
+```
+
+You're also free to skip the template system entirely and just call the low-level drawing methods (`addText`/`add_text`, `addTable`/`add_table`, `addLine`/`add_line`, `addRect`/`add_rect`, `addImage`/`add_image`) directly on the generator for a one-off document that doesn't need a reusable template at all.
+
+---
+
 ## Multi-page Invoices & Pagination
 
 You don't need to do anything special — pass as many `items` as you want. When a table row would run past the bottom margin, the generator automatically:
@@ -545,7 +613,8 @@ universal-pdf-gen/
 │       │   └── cli.py               # `pdf-gen` CLI
 │       └── tests/test_generator.py
 ├── examples/
-│   ├── example.js / example.py      # Runnable end-to-end examples
+│   ├── example.js / example.py               # Runnable end-to-end examples (built-in templates)
+│   ├── custom-template.js / custom_template.py  # Runnable example of a fully custom design
 │   ├── assets/*.{png,jpg,webp,svg}  # Sample logo in every supported format
 │   ├── js-data/*.json               # camelCase sample payloads (for the CLI)
 │   └── py-data/*.json               # snake_case sample payloads (for the CLI)
@@ -573,7 +642,7 @@ pip install -e .   # pulls in reportlab, pillow, and svglib
 python3 -m unittest discover -s tests -v
 ```
 
-Both suites cover: successful PDF generation, required-field validation errors, unregistered-template errors, multi-page pagination, page-size resolution, and logo embedding in all four supported image formats (PNG/JPG/WEBP/SVG).
+Both suites cover: successful PDF generation, required-field validation errors, unregistered-template errors, multi-page pagination, page-size resolution, logo embedding in all four supported image formats (PNG/JPG/WEBP/SVG), and registering/rendering a fully custom template.
 
 ---
 

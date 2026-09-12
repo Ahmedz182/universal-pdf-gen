@@ -105,3 +105,23 @@ test('embeds a logo (png, jpg, webp, svg) into an invoice without throwing', asy
     fs.unlinkSync(file);
   }
 });
+
+test('supports fully custom templates via registerTemplate, with full access to theme and raw doc', async () => {
+  const pdf = new PDFGenerator({ theme: { primary: '#7a2048', accent: '#d4af37' } });
+
+  let receivedTheme = null;
+  pdf.registerTemplate('businessCard', (doc, config, data, theme) => {
+    receivedTheme = theme;
+    doc.roundedRect(50, 50, 300, 150, 10).fill(theme.primary);
+    doc.fillColor(theme.accent).font('Helvetica-Bold').fontSize(18).text(data.name, 70, 80);
+  });
+
+  await pdf.useTemplate('businessCard', { name: 'Jane Doe' });
+
+  assert.strictEqual(receivedTheme.primary, '#7a2048', 'custom theme should reach the custom template');
+
+  const file = tmpFile('custom-template.pdf');
+  await pdf.generate(file);
+  assert.ok(fs.statSync(file).size > 500, 'expected a non-empty PDF from a fully custom template');
+  fs.unlinkSync(file);
+});
