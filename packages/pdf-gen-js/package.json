@@ -9,13 +9,22 @@
   },
   "files": [
     "dist",
-    "bin",
-    "templates"
+    "bin"
   ],
   "scripts": {
     "build": "tsc",
-    "test": "node --test",
+    "prepublishOnly": "npm run build && npm test",
+    "test": "npm run build && node --test",
     "dev": "tsc --watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ahmedz182/universal-pdf-gen.git",
+    "directory": "packages/pdf-gen-js"
+  },
+  "homepage": "https://github.com/Ahmedz182/universal-pdf-gen#readme",
+  "bugs": {
+    "url": "https://github.com/Ahmedz182/universal-pdf-gen/issues"
   },
   "dependencies": {
     "pdfkit": "^0.13.0"

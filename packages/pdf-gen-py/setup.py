@@ -11,7 +11,7 @@ setup(
     description="Python PDF generation with templates",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/Ahmedz182/pdf-gen",
+    url="https://github.com/Ahmedz182/universal-pdf-gen",
     packages=find_packages(),
     classifiers=[
         "Programming Language :: Python :: 3",

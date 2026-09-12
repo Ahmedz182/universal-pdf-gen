@@ -1,28 +1,34 @@
-import PDFDocument from 'pdfkit';
 import fs from 'fs';
-import { PDFConfig, DEFAULT_CONFIG, PAGE_SIZES } from './config';
+import { PDFConfig, DEFAULT_CONFIG, resolvePageDimensions } from './config';
+import { Theme, mergeTheme } from './theme';
+import { PDFDoc, PDFDocumentCtor } from './types';
+import { drawTable, TableColumn, TableOptions } from './utils/table';
 
 export interface TemplateData {
   [key: string]: any;
 }
 
-export type TemplateRenderer = (pdf: PDFDocument, config: PDFConfig, data: TemplateData) => void;
+export type TemplateRenderer = (pdf: PDFDoc, config: PDFConfig, data: TemplateData, theme: Theme) => void;
+
+export type { TableColumn, TableOptions };
 
 export class PDFGenerator {
-  private doc: PDFDocument;
+  private doc: PDFDoc;
   private config: PDFConfig;
-  private templates: Map<string, TemplateRenderer>;
+  private theme: Theme;
+  private templates: Map<string, TemplateRenderer> = new Map();
 
   constructor(config: Partial<PDFConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-    this.templates = new Map();
+    this.config = { ...DEFAULT_CONFIG, ...config, margins: { ...DEFAULT_CONFIG.margins, ...config.margins } };
+    this.theme = mergeTheme(this.config.theme);
 
-    const [width, height] = PAGE_SIZES[this.config.pageSize];
-    const [finalWidth, finalHeight] = this.config.orientation === 'landscape' ? [height, width] : [width, height];
+    const [width, height] = resolvePageDimensions(this.config);
 
-    this.doc = new PDFDocument({
-      size: [finalWidth, finalHeight],
-      margins: this.config.margins
+    this.doc = new PDFDocumentCtor({
+      size: [width, height],
+      margins: this.config.margins,
+      bufferPages: true,
+      info: { Producer: 'universal-pdf-gen', Creator: 'universal-pdf-gen' }
     });
   }
 
@@ -30,12 +36,24 @@ export class PDFGenerator {
     this.templates.set(name, renderer);
   }
 
-  useTemplate(templateName: string, data: TemplateData): void {
+  useTemplate(templateName: string, data: TemplateData): this {
     const template = this.templates.get(templateName);
     if (!template) {
-      throw new Error(`Template "${templateName}" not found. Available: ${Array.from(this.templates.keys()).join(', ')}`);
+      throw new Error(
+        `Template "${templateName}" not found. Available: ${Array.from(this.templates.keys()).join(', ') || '(none registered)'}`
+      );
     }
-    template(this.doc, this.config, data);
+    template(this.doc, this.config, data, this.theme);
+    return this;
+  }
+
+  /** Usable content width between the left and right margins. */
+  get contentWidth(): number {
+    return this.doc.page.width - this.config.margins.left - this.config.margins.right;
+  }
+
+  get contentHeight(): number {
+    return this.doc.page.height - this.config.margins.top - this.config.margins.bottom;
   }
 
   addText(text: string, options: any = {}): this {
@@ -48,28 +66,20 @@ export class PDFGenerator {
     return this;
   }
 
-  addTable(columns: string[], rows: string[][], options: any = {}): this {
-    const x = this.doc.x;
-    const y = this.doc.y;
-    const columnWidth = (this.doc.page.width - this.config.margins.left - this.config.margins.right) / columns.length;
-    const rowHeight = options.rowHeight || 30;
+  /**
+   * Renders a table with word-wrapped cells, an optional striped body, and automatic
+   * page breaks when the table would run past the bottom margin.
+   */
+  addTable(columns: TableColumn[], rows: Array<Record<string, any> | any[]>, options: TableOptions = {}): this {
+    drawTable(this.doc, this.config, this.theme, columns, rows, options);
+    return this;
+  }
 
-    // Header
-    this.doc.fillColor('#f0f0f0');
-    columns.forEach((col, i) => {
-      this.doc.rect(x + i * columnWidth, y, columnWidth, rowHeight).fill();
-      this.doc.fillColor('#000000').text(col, x + i * columnWidth + 5, y + 8, { width: columnWidth - 10 });
-    });
-
-    // Rows
-    rows.forEach((row, rowIdx) => {
-      row.forEach((cell, colIdx) => {
-        this.doc.rect(x + colIdx * columnWidth, y + (rowIdx + 1) * rowHeight, columnWidth, rowHeight).stroke();
-        this.doc.text(cell, x + colIdx * columnWidth + 5, y + (rowIdx + 1) * rowHeight + 8, { width: columnWidth - 10 });
-      });
-    });
-
-    this.doc.y = y + (rows.length + 1) * rowHeight;
+  /** Adds a new page if the given height would not fit before the bottom margin. */
+  ensureSpace(height: number): this {
+    if (this.doc.y + height > this.doc.page.height - this.config.margins.bottom) {
+      this.doc.addPage();
+    }
     return this;
   }
 
@@ -78,18 +88,51 @@ export class PDFGenerator {
     return this;
   }
 
-  addLine(x1: number, y1: number, x2: number, y2: number, color: string = '#000000'): this {
-    this.doc.strokeColor(color).moveTo(x1, y1).lineTo(x2, y2).stroke();
+  addLine(x1: number, y1: number, x2: number, y2: number, color: string = this.theme.border, width = 1): this {
+    this.doc.strokeColor(color).lineWidth(width).moveTo(x1, y1).lineTo(x2, y2).stroke();
+    return this;
+  }
+
+  addRect(x: number, y: number, width: number, height: number, fillColor?: string, radius = 0): this {
+    if (radius > 0) {
+      this.doc.roundedRect(x, y, width, height, radius);
+    } else {
+      this.doc.rect(x, y, width, height);
+    }
+    if (fillColor) {
+      this.doc.fill(fillColor);
+    } else {
+      this.doc.stroke();
+    }
     return this;
   }
 
   setFont(fontName: string, size: number): this {
-    this.doc.font(fontName, size);
+    this.doc.font(fontName).fontSize(size);
     return this;
   }
 
   moveDown(amount: number = 1): this {
     this.doc.moveDown(amount);
+    return this;
+  }
+
+  /** Stamps "Page N of M" at the bottom-right of every page. Call once, right before generate(). */
+  addPageNumbers(): this {
+    const { doc, theme, config } = this;
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      const pageNum = i - range.start + 1;
+      doc
+        .font('Helvetica')
+        .fontSize(8)
+        .fillColor(theme.muted)
+        .text(`Page ${pageNum} of ${range.count}`, 0, doc.page.height - config.margins.bottom + 10, {
+          width: doc.page.width,
+          align: 'center'
+        });
+    }
     return this;
   }
 
@@ -104,7 +147,22 @@ export class PDFGenerator {
     });
   }
 
-  getDocument(): PDFDocument {
+  /** Resolves with the raw PDF bytes instead of writing to disk — useful for HTTP responses. */
+  async generateBuffer(): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      this.doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      this.doc.on('end', () => resolve(Buffer.concat(chunks)));
+      this.doc.on('error', reject);
+      this.doc.end();
+    });
+  }
+
+  getDocument(): PDFDoc {
     return this.doc;
+  }
+
+  getTheme(): Theme {
+    return this.theme;
   }
 }

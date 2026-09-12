@@ -1,89 +1,100 @@
-from typing import Callable, Dict, Any
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4, Letter, A3, A5
-from reportlab.lib.units import inch
+from typing import Any, Callable, Dict, List, Optional
 from io import BytesIO
 
-from .config import PDFConfig, PAGE_SIZES
+from reportlab.pdfgen import canvas as rl_canvas
+
+from .config import PDFConfig, Theme, default_margins
+from .surface import Surface
+from .utils.table import draw_table
+
 
 class PDFGenerator:
-    def __init__(self, config: PDFConfig = None):
-        if config is None:
-            config = PDFConfig()
-        self.config = config
+    def __init__(
+        self,
+        page_size: str = 'A4',
+        orientation: str = 'portrait',
+        margins: Optional[Dict[str, float]] = None,
+        theme: Optional[Theme] = None,
+        page_numbers: bool = False,
+        **_ignored: Any,
+    ):
+        self.config = PDFConfig(
+            page_size=page_size,
+            orientation=orientation,
+            margins={**default_margins(), **(margins or {})},
+            theme=theme or Theme(),
+        )
+        self.theme = self.config.theme
         self.templates: Dict[str, Callable] = {}
+        self._page_numbers_enabled = page_numbers
+        self._page_num = 1
+
         self.output = BytesIO()
-        self.canvas = None
-        self._setup_canvas()
+        self.page_width, self.page_height = self.config.resolve_page_dimensions()
+        self.canvas = rl_canvas.Canvas(self.output, pagesize=(self.page_width, self.page_height))
+        self.surface = Surface(
+            self.canvas,
+            self.page_width,
+            self.page_height,
+            on_new_page=self._handle_new_page if page_numbers else None,
+        )
 
-    def _setup_canvas(self):
-        page_sizes = {
-            'A4': A4,
-            'Letter': Letter,
-            'A3': A3,
-            'A5': A5,
-        }
+    def _handle_new_page(self) -> None:
+        self._stamp_page_number(self._page_num)
+        self._page_num += 1
 
-        page_size = page_sizes.get(self.config.page_size, A4)
-        if self.config.orientation == 'landscape':
-            page_size = (page_size[1], page_size[0])
+    def _stamp_page_number(self, n: int) -> None:
+        self.surface.text(
+            0,
+            self.page_height - self.config.margins['bottom'] + 12,
+            f'Page {n}',
+            font='Helvetica',
+            size=8,
+            color=self.theme.muted,
+            align='center',
+            width=self.page_width,
+        )
 
-        self.canvas = canvas.Canvas(self.output, pagesize=page_size)
+    @property
+    def content_width(self) -> float:
+        return self.page_width - self.config.margins['left'] - self.config.margins['right']
+
+    @property
+    def content_height(self) -> float:
+        return self.page_height - self.config.margins['top'] - self.config.margins['bottom']
 
     def register_template(self, name: str, renderer: Callable) -> None:
         self.templates[name] = renderer
 
-    def use_template(self, template_name: str, data: Dict[str, Any]) -> None:
+    def use_template(self, template_name: str, data: Dict[str, Any]) -> 'PDFGenerator':
         if template_name not in self.templates:
-            available = ', '.join(self.templates.keys())
+            available = ', '.join(self.templates.keys()) or '(none registered)'
             raise ValueError(f'Template "{template_name}" not found. Available: {available}')
-
-        template = self.templates[template_name]
-        template(self.canvas, self.config, data)
-
-    def add_text(self, text: str, x: float = None, y: float = None, **options) -> 'PDFGenerator':
-        if x is None:
-            x = self.config.margins['left']
-        if y is None:
-            y = self.config.margins['top']
-
-        self.canvas.drawString(x, y, text)
+        self.templates[template_name](self.surface, self.config, data, self.theme)
         return self
 
-    def add_image(self, image_path: str, x: float, y: float, width: float = None, height: float = None) -> 'PDFGenerator':
-        self.canvas.drawImage(image_path, x, y, width=width, height=height)
+    def add_text(self, text: str, x: Optional[float] = None, y: Optional[float] = None, **options) -> 'PDFGenerator':
+        x = self.config.margins['left'] if x is None else x
+        y = self.config.margins['top'] if y is None else y
+        self.surface.text(x, y, text, **options)
         return self
 
-    def add_table(self, columns: list, rows: list, x: float = None, y: float = None, **options) -> 'PDFGenerator':
-        if x is None:
-            x = self.config.margins['left']
-        if y is None:
-            y = self.config.margins['top']
+    def add_image(self, image_path: str, x: float, y_top: float, width: float = None, height: float = None) -> 'PDFGenerator':
+        canvas_y = self.page_height - y_top - (height or 0)
+        self.canvas.drawImage(image_path, x, canvas_y, width=width, height=height)
+        return self
 
-        page_width = 595.28 - self.config.margins['left'] - self.config.margins['right']
-        col_width = page_width / len(columns)
-        row_height = options.get('row_height', 20)
-
-        # Draw header
-        self.canvas.setFillColor('#f0f0f0')
-        for i, col in enumerate(columns):
-            self.canvas.rect(x + i * col_width, y, col_width, row_height, fill=True)
-            self.canvas.drawString(x + i * col_width + 5, y + 8, str(col))
-
-        # Draw rows
-        for row_idx, row in enumerate(rows):
-            for col_idx, cell in enumerate(row):
-                self.canvas.rect(x + col_idx * col_width, y + (row_idx + 1) * row_height, col_width, row_height)
-                self.canvas.drawString(x + col_idx * col_width + 5, y + (row_idx + 1) * row_height + 8, str(cell))
-
+    def add_table(self, columns: List[Dict[str, Any]], rows: List[Any], start_y: Optional[float] = None, **options) -> 'PDFGenerator':
+        y = self.config.margins['top'] if start_y is None else start_y
+        draw_table(self.surface, self.config, self.theme, columns, rows, y, **options)
         return self
 
     def add_page(self) -> 'PDFGenerator':
-        self.canvas.showPage()
+        self.surface.new_page()
         return self
 
-    def add_line(self, x1: float, y1: float, x2: float, y2: float, color: str = 'black') -> 'PDFGenerator':
-        self.canvas.line(x1, y1, x2, y2)
+    def add_line(self, x1: float, y1: float, x2: float, y2: float, color: str = None, width: float = 1) -> 'PDFGenerator':
+        self.surface.line(x1, y1, x2, y2, color=color or self.theme.border, width=width)
         return self
 
     def set_font(self, font_name: str, size: int) -> 'PDFGenerator':
@@ -91,6 +102,14 @@ class PDFGenerator:
         return self
 
     def generate(self, filename: str) -> None:
+        if self._page_numbers_enabled:
+            self._stamp_page_number(self._page_num)
         self.canvas.save()
         with open(filename, 'wb') as f:
             f.write(self.output.getvalue())
+
+    def generate_bytes(self) -> bytes:
+        if self._page_numbers_enabled:
+            self._stamp_page_number(self._page_num)
+        self.canvas.save()
+        return self.output.getvalue()

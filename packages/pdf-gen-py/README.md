@@ -1,29 +1,28 @@
-# pdf-gen - Python PDF Generation
+# pdf-gen (Python)
 
-Python implementation of pdf-gen with support for invoices, receipts, and certificates.
+Python implementation of [universal-pdf-gen](https://github.com/Ahmedz182/universal-pdf-gen) — professional invoice, receipt, and certificate PDFs with a programmatic API. Built on [ReportLab](https://www.reportlab.com/).
+
+See the [root README](../../README.md) for full screenshots and a side-by-side comparison with the JavaScript/TypeScript package.
 
 ## Installation
 
 ```bash
-pip install pdf-gen
+pip install -e .
 ```
+
+(Once published: `pip install pdf-gen`.)
 
 ## Quick Start
 
 ```python
 from pdf_gen import PDFGenerator, Templates
-from datetime import datetime
 
-pdf = PDFGenerator(
-    page_size='A4',
-    orientation='portrait'
-)
-
+pdf = PDFGenerator(page_size='A4', orientation='portrait')
 Templates.register(pdf)
 
 pdf.use_template('invoice', {
     'invoice_number': 'INV-001',
-    'date': datetime.now().strftime('%Y-%m-%d'),
+    'date': '2024-01-15',
     'company_name': 'ACME Corp',
     'client_name': 'John Doe',
     'items': [
@@ -38,25 +37,26 @@ pdf.generate('invoice.pdf')
 
 ## Templates
 
+See the [templates reference in the root README](../../README.md#templates-reference) for the full field list. All keys are `snake_case` in Python.
+
 ### Invoice
 
 ```python
 data = {
     'invoice_number': 'INV-001',
     'date': '2024-01-15',
+    'due_date': '2024-02-14',
+    'status': 'DUE',
     'company_name': 'ACME Corp',
     'company_address': 'Optional address',
     'client_name': 'John Doe',
     'client_address': 'Optional address',
     'items': [
-        {
-            'description': 'Service',
-            'quantity': 1,
-            'unit_price': 100
-        }
+        {'description': 'Service', 'quantity': 1, 'unit_price': 100}
     ],
     'subtotal': 100,
     'tax': 10,
+    'tax_rate': 10,
     'total': 110,
     'notes': 'Optional notes',
     'payment_terms': 'Net 30'
@@ -72,16 +72,13 @@ data = {
     'receipt_number': 'RCP-001',
     'datetime': '2024-01-15 10:30',
     'items': [
-        {
-            'name': 'Item',
-            'quantity': 1,
-            'price': 25.00
-        }
+        {'name': 'Item', 'quantity': 1, 'price': 25.00}
     ],
     'subtotal': 25.00,
     'tax': 2.50,
     'total': 27.50,
-    'payment_method': 'Cash'
+    'payment_method': 'Cash',
+    'thank_you_message': 'Thank you for your purchase!'
 }
 ```
 
@@ -94,39 +91,67 @@ data = {
     'achievement_text': 'For successfully completing the course',
     'issuer_name': 'Institution Name',
     'issue_date': '2024-01-15',
-    'certification_number': 'CERT-001'
+    'certification_number': 'CERT-001',
+    'border_color': '#1a5f7a'
 }
 ```
 
 ## CLI Usage
 
 ```bash
-pdf-gen invoice output.pdf --config invoice-data.json
-pdf-gen receipt receipt.pdf --config receipt-data.json --page-size A4
-pdf-gen certificate cert.pdf --config cert-data.json --orientation portrait
+python3 -m pdf_gen.cli invoice output.pdf --config invoice-data.json
+python3 -m pdf_gen.cli receipt receipt.pdf --config receipt-data.json --page-size A4
+python3 -m pdf_gen.cli certificate cert.pdf --config cert-data.json --orientation portrait
 ```
 
-## Programmatic API
+Or, once installed as a package, simply `pdf-gen invoice output.pdf --config invoice-data.json`.
+
+## Programmatic (non-template) API
 
 ```python
 from pdf_gen import PDFGenerator
 
 pdf = PDFGenerator(page_size='A4', orientation='portrait')
 
-# Add text
-pdf.add_text('Hello World', 100, 100)
+# Text (top-down coordinates: y=0 is the TOP of the page)
+pdf.add_text('Hello World', x=100, y=100)
 
-# Add line
+# Line
 pdf.add_line(100, 200, 300, 200)
 
-# Add image
-pdf.add_image('image.png', 100, 300, width=100, height=100)
+# Table with automatic word-wrap and pagination
+pdf.add_table(
+    columns=[{'header': 'Name', 'key': 'name'}, {'header': 'Score', 'key': 'score', 'align': 'right'}],
+    rows=[{'name': 'Alice', 'score': '95'}, {'name': 'Bob', 'score': '88'}],
+)
 
-# Add new page
+# New page
 pdf.add_page()
 
-# Generate
+# Write to disk, or get raw bytes for an HTTP response
 pdf.generate('output.pdf')
+pdf_bytes = pdf.generate_bytes()
+```
+
+## Theming
+
+```python
+from pdf_gen import PDFGenerator, Theme
+
+pdf = PDFGenerator(theme=Theme(primary='#7a2048', accent='#d4af37'))
+```
+
+## Page numbers
+
+```python
+pdf = PDFGenerator(page_numbers=True)  # stamps "Page N" at the bottom of every page
+```
+
+## Running tests
+
+```bash
+pip install -e . reportlab
+python3 -m unittest discover -s tests -v
 ```
 
 ## License

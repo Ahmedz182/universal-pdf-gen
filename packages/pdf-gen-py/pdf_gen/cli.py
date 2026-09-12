@@ -2,7 +2,6 @@ import sys
 import json
 import argparse
 from .generator import PDFGenerator
-from .config import PDFConfig
 from . import Templates
 
 def main():
@@ -31,8 +30,7 @@ Examples:
         with open(args.config, 'r') as f:
             config_data = json.load(f)
 
-        pdf_config = PDFConfig(page_size=args.page_size, orientation=args.orientation)
-        pdf = PDFGenerator(pdf_config)
+        pdf = PDFGenerator(page_size=args.page_size, orientation=args.orientation)
         Templates.register(pdf)
 
         pdf.use_template(args.template, config_data)
