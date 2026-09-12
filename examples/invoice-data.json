@@ -1,0 +1,30 @@
+{
+  "invoiceNumber": "INV-2024-001",
+  "date": "2024-01-15",
+  "companyName": "ACME Corporation",
+  "companyAddress": "123 Business Ave, New York, NY 10001",
+  "clientName": "John Doe",
+  "clientAddress": "456 Customer Street, Los Angeles, CA 90001",
+  "items": [
+    {
+      "description": "Web Development Services",
+      "quantity": 1,
+      "unitPrice": 5000
+    },
+    {
+      "description": "UI/UX Design",
+      "quantity": 1,
+      "unitPrice": 2000
+    },
+    {
+      "description": "Project Management",
+      "quantity": 40,
+      "unitPrice": 75
+    }
+  ],
+  "subtotal": 8000,
+  "tax": 640,
+  "total": 8640,
+  "notes": "Thank you for your business!",
+  "paymentTerms": "Net 30"
+}

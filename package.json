@@ -1,0 +1,11 @@
+{
+  "name": "pdf-gen-monorepo",
+  "version": "1.0.0",
+  "description": "Multi-language PDF generation library with templates",
+  "private": true,
+  "workspaces": [
+    "packages/pdf-gen-js"
+  ],
+  "author": "Ahmed Fayyaz",
+  "license": "MIT"
+}
