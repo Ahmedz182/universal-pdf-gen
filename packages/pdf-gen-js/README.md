@@ -21,7 +21,7 @@ const { PDFGenerator, Templates } = require('pdf-gen-js');
 const pdf = new PDFGenerator({ pageSize: 'A4', orientation: 'portrait' });
 Templates.register(pdf);
 
-pdf.useTemplate('invoice', {
+await pdf.useTemplate('invoice', {
   invoiceNumber: 'INV-001',
   date: '2024-01-15',
   companyName: 'ACME Corp',
@@ -33,6 +33,8 @@ pdf.useTemplate('invoice', {
 
 await pdf.generate('invoice.pdf');
 ```
+
+> `useTemplate` is `async` — image embedding (WEBP normalization, SVG parsing) may need to do async work — so always `await` it.
 
 TypeScript types are included — `InvoiceData`, `ReceiptData`, `CertificateData`, `PDFConfig`, and `Theme` are all exported.
 
@@ -95,10 +97,22 @@ const data = {
 };
 ```
 
+## Logos (PNG, JPG, WEBP, SVG)
+
+```javascript
+await pdf.useTemplate('invoice', {
+  logo: 'logo.svg', // or .png / .jpg / .webp, a Buffer, or { src, width, height }
+  // ...
+});
+```
+
+WEBP is transparently normalized to PNG via `sharp` (PDFKit has no native WEBP support). SVG is drawn as true vector paths via `svg-to-pdfkit` — not rasterized — so it stays crisp. See [Logos & Images in the root README](../../README.md#logos--images) for the full picture, including a side-by-side comparison of all four formats.
+
 ## CLI Usage
 
 ```bash
 node bin/cli.js invoice output.pdf --config invoice-data.json
+node bin/cli.js invoice output.pdf --config invoice-data.json --logo logo.svg
 node bin/cli.js receipt receipt.pdf --config receipt-data.json --page-size A4
 node bin/cli.js certificate cert.pdf --config cert-data.json --orientation portrait
 ```
@@ -130,6 +144,9 @@ pdf.addTable(
 
 // New page
 pdf.addPage();
+
+// Image (PNG, JPG, WEBP, or SVG — file path or Buffer)
+await pdf.addImage('logo.svg', 100, 50, 80, 80); // x, y, width, height
 
 // Write to disk, or get raw bytes for an HTTP response
 await pdf.generate('output.pdf');

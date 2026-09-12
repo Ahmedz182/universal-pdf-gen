@@ -2,6 +2,7 @@ import { PDFConfig } from '../config';
 import { Theme } from '../theme';
 import { PDFDoc } from '../types';
 import { requireFields, toDate, formatCurrency } from '../utils/validate';
+import { embedImage, LogoInput, resolveLogo } from '../utils/logo';
 
 export interface ReceiptItem {
   name: string;
@@ -13,6 +14,7 @@ export interface ReceiptItem {
 export interface ReceiptData {
   storeName: string;
   storeAddress?: string;
+  logo?: LogoInput;
   receiptNumber: string;
   dateTime: Date | string;
   items: ReceiptItem[];
@@ -24,7 +26,7 @@ export interface ReceiptData {
   thankYouMessage?: string;
 }
 
-export function renderReceipt(pdf: PDFDoc, config: PDFConfig, data: ReceiptData, theme: Theme): void {
+export async function renderReceipt(pdf: PDFDoc, config: PDFConfig, data: ReceiptData, theme: Theme): Promise<void> {
   requireFields(data as any, ['storeName', 'receiptNumber', 'items', 'subtotal', 'total', 'paymentMethod'], 'receipt');
 
   const left = config.margins.left;
@@ -35,6 +37,12 @@ export function renderReceipt(pdf: PDFDoc, config: PDFConfig, data: ReceiptData,
   const dateTime = toDate(data.dateTime);
 
   let y = config.margins.top;
+
+  const logo = resolveLogo(data.logo, 44);
+  if (logo) {
+    await embedImage(pdf, logo.src, centerX - logo.width / 2, y, { width: logo.width, height: logo.height });
+    y += logo.height + 8;
+  }
 
   pdf.fillColor(theme.primary).font('Helvetica-Bold').fontSize(18).text(data.storeName, left, y, {
     align: 'center',

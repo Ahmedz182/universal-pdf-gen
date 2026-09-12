@@ -11,6 +11,7 @@ def main():
         epilog='''
 Examples:
   pdf-gen invoice output.pdf --config invoice-data.json
+  pdf-gen invoice output.pdf --config invoice-data.json --logo logo.svg
   pdf-gen receipt receipt.pdf --config receipt-data.json --page-size A4
   pdf-gen certificate cert.pdf --config cert-data.json --orientation portrait
         '''
@@ -23,12 +24,17 @@ Examples:
                         help='Page size (default: A4)')
     parser.add_argument('--orientation', default='portrait', choices=['portrait', 'landscape'],
                         help='Page orientation (default: portrait)')
+    parser.add_argument('--logo', help='Logo image to embed (png, jpg, webp, or svg) — '
+                                        'overrides/sets the "logo" field from --config')
 
     args = parser.parse_args()
 
     try:
         with open(args.config, 'r') as f:
             config_data = json.load(f)
+
+        if args.logo:
+            config_data['logo'] = args.logo
 
         pdf = PDFGenerator(page_size=args.page_size, orientation=args.orientation)
         Templates.register(pdf)

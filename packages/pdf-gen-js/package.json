@@ -27,12 +27,14 @@
     "url": "https://github.com/Ahmedz182/universal-pdf-gen/issues"
   },
   "dependencies": {
-    "pdfkit": "^0.13.0"
+    "pdfkit": "^0.13.0",
+    "sharp": "^0.35.4",
+    "svg-to-pdfkit": "^0.1.8"
   },
   "devDependencies": {
-    "typescript": "^5.0.0",
     "@types/node": "^20.0.0",
-    "@types/pdfkit": "^0.12.0"
+    "@types/pdfkit": "^0.12.0",
+    "typescript": "^5.0.0"
   },
   "keywords": [
     "pdf",

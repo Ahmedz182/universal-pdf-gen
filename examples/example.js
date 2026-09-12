@@ -9,9 +9,10 @@ async function generateInvoice() {
 
   Templates.register(pdf);
 
-  pdf.useTemplate('invoice', {
+  await pdf.useTemplate('invoice', {
     invoiceNumber: 'INV-2024-001',
     date: new Date('2024-01-15'),
+    logo: 'examples/assets/logo.svg',
     companyName: 'ACME Corporation',
     companyAddress: '123 Business Ave, New York, NY 10001',
     clientName: 'John Doe',
@@ -52,8 +53,9 @@ async function generateReceipt() {
 
   Templates.register(pdf);
 
-  pdf.useTemplate('receipt', {
+  await pdf.useTemplate('receipt', {
     storeName: 'Coffee Shop',
+    logo: 'examples/assets/logo.png',
     storeAddress: '123 Main Street, Downtown',
     receiptNumber: 'RCP-2024-001',
     dateTime: new Date(),
@@ -81,8 +83,9 @@ async function generateCertificate() {
 
   Templates.register(pdf);
 
-  pdf.useTemplate('certificate', {
+  await pdf.useTemplate('certificate', {
     title: 'Certificate of Achievement',
+    logo: 'examples/assets/logo.webp',
     recipientName: 'Jane Smith',
     achievementText: 'For successfully completing the Advanced PDF Generation course with excellence and dedication',
     issuerName: 'PDF Academy',

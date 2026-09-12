@@ -3,6 +3,7 @@ import { Theme } from '../theme';
 import { PDFDoc } from '../types';
 import { drawTable } from '../utils/table';
 import { requireFields, toDate, formatDate, formatCurrency } from '../utils/validate';
+import { embedImage, LogoInput, resolveLogo } from '../utils/logo';
 
 export interface InvoiceItem {
   description: string;
@@ -15,6 +16,7 @@ export interface InvoiceData {
   invoiceNumber: string;
   date: Date | string;
   dueDate?: Date | string;
+  logo?: LogoInput;
   companyName: string;
   companyAddress?: string;
   clientName: string;
@@ -30,7 +32,7 @@ export interface InvoiceData {
   status?: 'PAID' | 'DUE' | 'OVERDUE';
 }
 
-export function renderInvoice(pdf: PDFDoc, config: PDFConfig, data: InvoiceData, theme: Theme): void {
+export async function renderInvoice(pdf: PDFDoc, config: PDFConfig, data: InvoiceData, theme: Theme): Promise<void> {
   requireFields(data as any, ['invoiceNumber', 'companyName', 'clientName', 'items', 'subtotal', 'total'], 'invoice');
 
   const left = config.margins.left;
@@ -42,11 +44,20 @@ export function renderInvoice(pdf: PDFDoc, config: PDFConfig, data: InvoiceData,
   const bannerHeight = 90;
   pdf.rect(0, 0, pdf.page.width, bannerHeight).fill(theme.primary);
 
-  pdf.fillColor('#ffffff').font('Helvetica-Bold').fontSize(26).text('INVOICE', left, 30);
+  let textLeft = left;
+  const logo = resolveLogo(data.logo, 50);
+  if (logo) {
+    const plate = logo.height + 10;
+    pdf.roundedRect(left, (bannerHeight - plate) / 2, plate, plate, 6).fill('#ffffff');
+    await embedImage(pdf, logo.src, left + 5, (bannerHeight - plate) / 2 + 5, { width: logo.width, height: logo.height });
+    textLeft = left + plate + 15;
+  }
+
+  pdf.fillColor('#ffffff').font('Helvetica-Bold').fontSize(26).text('INVOICE', textLeft, 30);
   pdf
     .font('Helvetica')
     .fontSize(10)
-    .text(data.companyName, left, 62, { width: contentWidth * 0.6 });
+    .text(data.companyName, textLeft, 62, { width: contentWidth * 0.6 - (textLeft - left) });
 
   pdf.font('Helvetica-Bold').fontSize(12).text(`#${data.invoiceNumber}`, left, 30, {
     width: contentWidth,

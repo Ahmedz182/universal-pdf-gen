@@ -3,6 +3,7 @@ from .config import PDFConfig, Theme, PAGE_SIZES, DEFAULT_CONFIG
 from .templates.invoice import render_invoice
 from .templates.receipt import render_receipt
 from .templates.certificate import render_certificate
+from .utils.image import detect_format
 
 
 class Templates:
@@ -27,4 +28,5 @@ __all__ = [
     'render_invoice',
     'render_receipt',
     'render_certificate',
+    'detect_format',
 ]

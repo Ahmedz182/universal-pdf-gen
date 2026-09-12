@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const path = require('path');
 const { PDFGenerator, Templates } = require('../dist/index');
 
 const args = process.argv.slice(2);
+
+function flag(name) {
+  const idx = args.indexOf(name);
+  return idx === -1 ? null : args[idx + 1];
+}
 
 if (args.length === 0 || args[0] === '--help' || args[0] === '-h') {
   console.log(`
@@ -18,13 +22,16 @@ Templates:
   certificate - Generate a certificate PDF
 
 Options:
-  --config <file>  - JSON file with template data
-  --page-size <size>  - Page size: A4 (default), Letter, A3, A5
-  --orientation <orientation>  - portrait (default) or landscape
-  --help, -h  - Show this help message
+  --config <file>        JSON file with template data
+  --page-size <size>     Page size: A4 (default), Letter, A3, A5
+  --orientation <o>      portrait (default) or landscape
+  --logo <file>          Logo image to embed (png, jpg, webp, or svg) —
+                         overrides/sets the "logo" field from --config
+  --help, -h             Show this help message
 
 Examples:
   pdf-gen invoice invoice.pdf --config invoice-data.json
+  pdf-gen invoice invoice.pdf --config invoice-data.json --logo logo.svg
   pdf-gen certificate cert.pdf --config cert-data.json --page-size A4
   `);
   process.exit(0);
@@ -32,9 +39,10 @@ Examples:
 
 const template = args[0];
 const output = args[1];
-const configFile = args.includes('--config') ? args[args.indexOf('--config') + 1] : null;
-const pageSize = args.includes('--page-size') ? args[args.indexOf('--page-size') + 1] : 'A4';
-const orientation = args.includes('--orientation') ? args[args.indexOf('--orientation') + 1] : 'portrait';
+const configFile = flag('--config');
+const pageSize = flag('--page-size') || 'A4';
+const orientation = flag('--orientation') || 'portrait';
+const logoFile = flag('--logo');
 
 if (!template || !output) {
   console.error('Error: template and output arguments are required');
@@ -46,16 +54,21 @@ if (!configFile) {
   process.exit(1);
 }
 
-try {
+async function main() {
   const config = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  if (logoFile) {
+    config.logo = logoFile;
+  }
+
   const pdf = new PDFGenerator({ pageSize, orientation });
   Templates.register(pdf);
 
-  pdf.useTemplate(template, config);
-  pdf.generate(output).then(() => {
-    console.log(`✓ PDF generated: ${output}`);
-  });
-} catch (error) {
+  await pdf.useTemplate(template, config);
+  await pdf.generate(output);
+  console.log(`✓ PDF generated: ${output}`);
+}
+
+main().catch((error) => {
   console.error(`Error: ${error.message}`);
   process.exit(1);
-}
+});

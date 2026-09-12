@@ -4,6 +4,9 @@ export { DEFAULT_CONFIG, PAGE_SIZES, resolvePageDimensions } from './config';
 export type { Theme } from './theme';
 export { DEFAULT_THEME, mergeTheme } from './theme';
 export type { TableColumn, TableOptions } from './utils/table';
+export type { LogoInput } from './utils/logo';
+export { detectFormat } from './utils/image';
+export type { ImageFormat } from './utils/image';
 
 import { PDFGenerator, TemplateRenderer } from './generator';
 import { renderInvoice } from './templates/invoice';

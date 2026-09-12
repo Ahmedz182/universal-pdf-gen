@@ -2,9 +2,11 @@ import { PDFConfig } from '../config';
 import { Theme } from '../theme';
 import { PDFDoc } from '../types';
 import { requireFields, formatDate } from '../utils/validate';
+import { embedImage, LogoInput, resolveLogo } from '../utils/logo';
 
 export interface CertificateData {
   title: string;
+  logo?: LogoInput;
   recipientName: string;
   achievementText: string;
   issuerName: string;
@@ -14,7 +16,7 @@ export interface CertificateData {
   decorativeElements?: boolean;
 }
 
-export function renderCertificate(pdf: PDFDoc, config: PDFConfig, data: CertificateData, theme: Theme): void {
+export async function renderCertificate(pdf: PDFDoc, config: PDFConfig, data: CertificateData, theme: Theme): Promise<void> {
   requireFields(data as any, ['title', 'recipientName', 'achievementText', 'issuerName'], 'certificate');
 
   const pageWidth = pdf.page.width;
@@ -44,6 +46,11 @@ export function renderCertificate(pdf: PDFDoc, config: PDFConfig, data: Certific
   }
 
   let y = pageHeight * 0.14;
+
+  const logo = resolveLogo(data.logo, 60);
+  if (logo) {
+    await embedImage(pdf, logo.src, centerX - logo.width / 2, y - logo.height - 15, { width: logo.width, height: logo.height });
+  }
 
   pdf.font('Helvetica-Bold').fontSize(30).fillColor(borderColor).text(data.title, 60, y, {
     align: 'center',

@@ -3,6 +3,7 @@ from typing import Any, Dict
 from ..config import PDFConfig, Theme
 from ..surface import Surface
 from ..utils.validate import require_fields, format_date
+from ..utils.logo import resolve_logo, draw_image
 
 
 def render_certificate(surface: Surface, config: PDFConfig, data: Dict[str, Any], theme: Theme) -> None:
@@ -30,6 +31,10 @@ def render_certificate(surface: Surface, config: PDFConfig, data: Dict[str, Any]
             surface.circle(cx, cy_top, 4, fill=theme.accent)
 
     y = page_height * 0.14
+
+    logo = resolve_logo(data.get('logo'), 60)
+    if logo:
+        draw_image(surface, center_x - logo['width'] / 2, y - logo['height'] - 15, logo['src'], width=logo['width'], height=logo['height'])
 
     y = surface.text(60, y, data['title'], font='Helvetica-Bold', size=30, color=border_color, align='center', width=page_width - 120)
     y += 20

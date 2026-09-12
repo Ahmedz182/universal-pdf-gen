@@ -4,6 +4,7 @@ from ..config import PDFConfig, Theme
 from ..surface import Surface
 from ..utils.table import draw_table
 from ..utils.validate import require_fields, format_date, format_currency
+from ..utils.logo import resolve_logo, draw_image
 
 
 def render_invoice(surface: Surface, config: PDFConfig, data: Dict[str, Any], theme: Theme) -> None:
@@ -18,8 +19,19 @@ def render_invoice(surface: Surface, config: PDFConfig, data: Dict[str, Any], th
     banner_height = 90
     surface.rect(0, 0, surface.page_width, banner_height, fill=theme.primary)
 
-    surface.text(left, 30, 'INVOICE', font='Helvetica-Bold', size=26, color='#ffffff')
-    surface.text(left, 62, data['company_name'], font='Helvetica', size=10, color='#ffffff', width=content_width * 0.6)
+    text_left = left
+    logo = resolve_logo(data.get('logo'), 50)
+    if logo:
+        plate = logo['height'] + 10
+        surface.rect(left, (banner_height - plate) / 2, plate, plate, fill='#ffffff')
+        draw_image(surface, left + 5, (banner_height - plate) / 2 + 5, logo['src'], width=logo['width'], height=logo['height'])
+        text_left = left + plate + 15
+
+    surface.text(text_left, 30, 'INVOICE', font='Helvetica-Bold', size=26, color='#ffffff')
+    surface.text(
+        text_left, 62, data['company_name'], font='Helvetica', size=10, color='#ffffff',
+        width=content_width * 0.6 - (text_left - left)
+    )
 
     surface.text(
         left, 30, f"#{data['invoice_number']}", font='Helvetica-Bold', size=12,

@@ -21,6 +21,8 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "reportlab>=3.6.0",
+        "pillow>=9.0.0",
+        "svglib>=1.5.0",
     ],
     entry_points={
         "console_scripts": [

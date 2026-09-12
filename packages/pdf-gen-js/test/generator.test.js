@@ -12,7 +12,7 @@ function tmpFile(name) {
 test('generates a non-trivial invoice PDF', async () => {
   const pdf = new PDFGenerator({ pageSize: 'A4', orientation: 'portrait' });
   Templates.register(pdf);
-  pdf.useTemplate('invoice', {
+  await pdf.useTemplate('invoice', {
     invoiceNumber: 'T-1',
     date: '2024-01-01',
     companyName: 'Acme',
@@ -30,18 +30,18 @@ test('generates a non-trivial invoice PDF', async () => {
   fs.unlinkSync(file);
 });
 
-test('throws a clear error when required invoice fields are missing', () => {
+test('throws a clear error when required invoice fields are missing', async () => {
   const pdf = new PDFGenerator();
   Templates.register(pdf);
-  assert.throws(
+  await assert.rejects(
     () => pdf.useTemplate('invoice', { invoiceNumber: 'T-2' }),
     /Missing required field/
   );
 });
 
-test('throws when using an unregistered template', () => {
+test('throws when using an unregistered template', async () => {
   const pdf = new PDFGenerator();
-  assert.throws(() => pdf.useTemplate('nonexistent', {}), /not found/);
+  await assert.rejects(() => pdf.useTemplate('nonexistent', {}), /not found/);
 });
 
 test('paginates long invoices across multiple pages', async () => {
@@ -52,7 +52,7 @@ test('paginates long invoices across multiple pages', async () => {
     quantity: i + 1,
     unitPrice: 12.5
   }));
-  pdf.useTemplate('invoice', {
+  await pdf.useTemplate('invoice', {
     invoiceNumber: 'T-3',
     companyName: 'Acme',
     clientName: 'Client',
@@ -73,4 +73,35 @@ test('respects custom page size (Letter vs A4 produce different dimensions)', ()
   const a4 = new PDFGenerator({ pageSize: 'A4' });
   const letter = new PDFGenerator({ pageSize: 'Letter' });
   assert.notStrictEqual(a4.getDocument().page.width, letter.getDocument().page.width);
+});
+
+test('detectFormat recognizes png, jpeg, webp, and svg from bytes', () => {
+  const { detectFormat } = require('../dist/index');
+  assert.strictEqual(detectFormat(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 0, 0, 0])), 'png');
+  assert.strictEqual(detectFormat(Buffer.from([0xff, 0xd8, 0xff, 0xe0])), 'jpeg');
+  assert.strictEqual(detectFormat(Buffer.concat([Buffer.from('RIFF'), Buffer.from([0, 0, 0, 0]), Buffer.from('WEBP')])), 'webp');
+  assert.strictEqual(detectFormat(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>')), 'svg');
+});
+
+test('embeds a logo (png, jpg, webp, svg) into an invoice without throwing', async () => {
+  const formats = ['png', 'jpg', 'webp', 'svg'];
+  for (const ext of formats) {
+    const logoPath = path.join(__dirname, 'fixtures', `logo.${ext}`);
+    const pdf = new PDFGenerator();
+    Templates.register(pdf);
+    await pdf.useTemplate('invoice', {
+      invoiceNumber: `LOGO-${ext}`,
+      companyName: 'Acme',
+      clientName: 'Client',
+      logo: logoPath,
+      items: [{ description: 'Item', quantity: 1, unitPrice: 10 }],
+      subtotal: 10,
+      total: 10
+    });
+
+    const file = tmpFile(`logo-${ext}.pdf`);
+    await pdf.generate(file);
+    assert.ok(fs.statSync(file).size > 1000, `expected a non-empty PDF for .${ext} logo`);
+    fs.unlinkSync(file);
+  }
 });

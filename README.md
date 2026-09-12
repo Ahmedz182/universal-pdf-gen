@@ -18,11 +18,12 @@ Generate invoices, receipts, and certificates that look like they came from a re
 8. [Templates Reference](#templates-reference)
 9. [Configuration Options](#configuration-options)
 10. [Theming](#theming)
-11. [Multi-page Invoices & Pagination](#multi-page-invoices--pagination)
-12. [Project Structure](#project-structure)
-13. [Development & Tests](#development--tests)
-14. [Troubleshooting](#troubleshooting)
-15. [License](#license)
+11. [Logos & Images](#logos--images)
+12. [Multi-page Invoices & Pagination](#multi-page-invoices--pagination)
+13. [Project Structure](#project-structure)
+14. [Development & Tests](#development--tests)
+15. [Troubleshooting](#troubleshooting)
+16. [License](#license)
 
 ---
 
@@ -49,6 +50,14 @@ When content overflows a page, the table header repeats automatically and row st
 <img src="docs/screenshots/invoice-page2-pagination.png" alt="Multi-page invoice pagination example" width="700" />
 
 > The JavaScript and Python implementations render **pixel-identical output** — same theme, same layout math, same pagination behavior — so you can pick whichever language fits your stack without compromising on design.
+
+### Logo support — PNG, JPG, WEBP, and SVG all work
+
+The invoice above has a real logo embedded (`examples/assets/logo.svg`) — not a placeholder. All four major image formats are supported and produce equivalent output:
+
+<img src="docs/screenshots/logo-formats-comparison.png" alt="PNG, JPG, WEBP, and SVG logo comparison" width="800" />
+
+> The black corners on the JPG sample are expected, not a bug — JPEG has no alpha channel, so a logo with a transparent background gets a solid background when saved as JPEG. Use PNG, WEBP, or SVG if your logo needs transparency.
 
 ---
 
@@ -94,6 +103,7 @@ You can also skip templates entirely and draw directly with the low-level primit
 
 - 🌐 **Multi-language** — first-class JavaScript/TypeScript and Python packages with matching APIs and matching visual output
 - 🧾 **3 professional templates** — Invoice, Receipt, Certificate — with a real visual hierarchy (banner headers, colored accents, striped tables), not plain black-and-white text dumps
+- 🖼 **Logos in PNG, JPG, WEBP, or SVG** — drop a `logo` field into any template; SVG is embedded as true vector paths (not rasterized), so it stays crisp at any size
 - 📐 **Configurable page setup** — A4, Letter, A3, A5, portrait or landscape, custom margins
 - 🎨 **Themeable** — override the primary color, accent color, table colors, etc. per document
 - 📊 **Smart tables** — automatic word-wrapping per cell, striped rows, and automatic page breaks that reprint the header on the next page
@@ -102,7 +112,7 @@ You can also skip templates entirely and draw directly with the low-level primit
 - 💵 **Currency formatting** — built-in `Intl`/locale-aware currency formatting
 - 🔧 **CLI tools** in both languages for generating PDFs from a JSON file without writing code
 - 📄 **In-memory buffers** — generate PDFs straight into a `Buffer`/`bytes` for HTTP responses, no temp files required
-- 🧩 **Zero heavy dependencies** — JS wraps [PDFKit](http://pdfkit.org/), Python wraps [ReportLab](https://www.reportlab.com/) — both mature, widely used PDF engines
+- 🧩 **Mature PDF engines underneath** — JS wraps [PDFKit](http://pdfkit.org/) + [sharp](https://sharp.pixelplumbing.com/)/[svg-to-pdfkit](https://www.npmjs.com/package/svg-to-pdfkit) for images, Python wraps [ReportLab](https://www.reportlab.com/) + [Pillow](https://python-pillow.org/)/[svglib](https://github.com/deeplook/svglib)
 
 ---
 
@@ -153,12 +163,15 @@ Templates.register(pdf);
 
 **Step 3 — Fill in your data and render:**
 
+> `useTemplate` is `async` (image embedding may need to decode/convert a file), so `await` it before calling `generate()`.
+
 ```javascript
-pdf.useTemplate('invoice', {
+await pdf.useTemplate('invoice', {
   invoiceNumber: 'INV-2024-001',
   date: '2024-01-15',            // Date object or string — both work
   dueDate: '2024-02-14',
   status: 'DUE',                 // 'PAID' | 'DUE' | 'OVERDUE'
+  logo: 'logo.svg',              // optional — .png, .jpg, .webp, or .svg
   companyName: 'ACME Corporation',
   companyAddress: '123 Business Ave, New York, NY 10001',
   clientName: 'John Doe',
@@ -219,6 +232,7 @@ pdf.use_template('invoice', {
     'date': '2024-01-15',            # datetime object or string — both work
     'due_date': '2024-02-14',
     'status': 'DUE',                 # 'PAID' | 'DUE' | 'OVERDUE'
+    'logo': 'logo.svg',              # optional — .png, .jpg, .webp, or .svg
     'company_name': 'ACME Corporation',
     'company_address': '123 Business Ave, New York, NY 10001',
     'client_name': 'John Doe',
@@ -276,6 +290,12 @@ python3 -m pdf_gen.cli invoice output.pdf \
   --orientation portrait
 ```
 
+Both CLIs also accept a `--logo <file>` flag that sets/overrides the `logo` field from `--config`:
+
+```bash
+pdf-gen invoice invoice.pdf --config invoice-data.json --logo logo.svg
+```
+
 Once installed as packages, both expose a `pdf-gen` binary on your `PATH`:
 
 ```bash
@@ -295,6 +315,7 @@ pdf-gen certificate cert.pdf --config cert-data.json --orientation landscape
 | `date` | string \| Date/datetime | | Invoice date, defaults to today |
 | `dueDate` / `due_date` | string \| Date/datetime | | Optional due date line |
 | `status` | `'PAID'` \| `'DUE'` \| `'OVERDUE'` | | Colored status badge |
+| `logo` | path/bytes, or `{src, width, height}` — see [Logos & Images](#logos--images) | | Shown top-left in the header banner |
 | `companyName` / `company_name` | string | ✅ | Your business name |
 | `companyAddress` / `company_address` | string | | |
 | `clientName` / `client_name` | string | ✅ | Billed-to party |
@@ -315,6 +336,7 @@ Renders a colored header banner, FROM/BILL TO columns, a word-wrapped and stripe
 | Field (JS / Python) | Type | Required |
 |---|---|---|
 | `storeName` / `store_name` | string | ✅ |
+| `logo` | path/bytes, or `{src, width, height}` | |
 | `storeAddress` / `store_address` | string | |
 | `receiptNumber` / `receipt_number` | string | ✅ |
 | `dateTime` / `datetime` | string \| Date/datetime | |
@@ -333,6 +355,7 @@ Renders a compact, centered receipt layout with a dashed item separator, suitabl
 | Field (JS / Python) | Type | Required |
 |---|---|---|
 | `title` | string | ✅ |
+| `logo` | path/bytes, or `{src, width, height}` | |
 | `recipientName` / `recipient_name` | string | ✅ |
 | `achievementText` / `achievement_text` | string | ✅ |
 | `issuerName` / `issuer_name` | string | ✅ |
@@ -392,6 +415,69 @@ Available theme keys: `primary`, `primaryDark`/`primary_dark`, `accent`, `text`,
 
 ---
 
+## Logos & Images
+
+Every template accepts an optional `logo` field. All four major formats are supported:
+
+| Format | JS handling | Python handling |
+|---|---|---|
+| PNG | Embedded natively by PDFKit | Embedded natively via Pillow/`ImageReader` |
+| JPG/JPEG | Embedded natively by PDFKit | Embedded natively via Pillow/`ImageReader` |
+| WEBP | Transparently normalized to PNG via [`sharp`](https://sharp.pixelplumbing.com/) (PDFKit has no native WEBP support) | Decoded directly by Pillow (standard wheels ship with WEBP support) |
+| SVG | Drawn as **true vector paths** via [`svg-to-pdfkit`](https://www.npmjs.com/package/svg-to-pdfkit) — not rasterized | Drawn as **true vector paths** via [`svglib`](https://github.com/deeplook/svglib) — not rasterized |
+
+Format is auto-detected from the file extension, falling back to magic-byte sniffing for buffers/bytes with no extension.
+
+**Basic usage** — pass a file path (or `Buffer`/`bytes`) directly:
+
+```javascript
+// JS
+await pdf.useTemplate('invoice', { logo: 'logo.png', /* ... */ });
+```
+
+```python
+# Python
+pdf.use_template('invoice', {'logo': 'logo.png', ... })
+```
+
+**Custom size** — pass an object instead of a bare path to control the rendered dimensions (defaults vary per template — 50pt on invoices, 44pt on receipts, 60pt on certificates):
+
+```javascript
+// JS
+logo: { src: 'logo.png', width: 80, height: 80 }
+```
+
+```python
+# Python
+'logo': {'src': 'logo.png', 'width': 80, 'height': 80}
+```
+
+**In-memory bytes** work too, if you already have the image data (e.g. fetched from a database or uploaded by a user) instead of a file on disk:
+
+```javascript
+// JS — Buffer
+logo: fs.readFileSync('logo.png')
+```
+
+```python
+# Python — bytes
+with open('logo.png', 'rb') as f:
+    logo_bytes = f.read()
+# 'logo': logo_bytes
+```
+
+**Low-level API**, outside of templates, for drawing an image anywhere on the page:
+
+```javascript
+await pdf.addImage('logo.svg', 100, 50, 80, 80); // x, y, width, height
+```
+
+```python
+pdf.add_image('logo.svg', 100, 50, width=80, height=80)
+```
+
+---
+
 ## Multi-page Invoices & Pagination
 
 You don't need to do anything special — pass as many `items` as you want. When a table row would run past the bottom margin, the generator automatically:
@@ -433,7 +519,9 @@ universal-pdf-gen/
 │   │   │   ├── types.ts            # PDFKit typing shims
 │   │   │   ├── utils/
 │   │   │   │   ├── table.ts        # Shared word-wrapping table renderer
-│   │   │   │   └── validate.ts     # Field validation, date/currency helpers
+│   │   │   │   ├── validate.ts     # Field validation, date/currency helpers
+│   │   │   │   ├── image.ts        # Format detection + WEBP normalization (sharp) / SVG (svg-to-pdfkit)
+│   │   │   │   └── logo.ts         # `logo` field normalization shared by all templates
 │   │   │   └── templates/
 │   │   │       ├── invoice.ts
 │   │   │       ├── receipt.ts
@@ -447,7 +535,9 @@ universal-pdf-gen/
 │       │   ├── surface.py           # Top-down coordinate drawing layer over reportlab
 │       │   ├── utils/
 │       │   │   ├── table.py
-│       │   │   └── validate.py
+│       │   │   ├── validate.py
+│       │   │   ├── image.py         # Format detection + raster (Pillow) / SVG (svglib) embedding
+│       │   │   └── logo.py          # `logo` field normalization shared by all templates
 │       │   ├── templates/
 │       │   │   ├── invoice.py
 │       │   │   ├── receipt.py
@@ -456,6 +546,7 @@ universal-pdf-gen/
 │       └── tests/test_generator.py
 ├── examples/
 │   ├── example.js / example.py      # Runnable end-to-end examples
+│   ├── assets/*.{png,jpg,webp,svg}  # Sample logo in every supported format
 │   ├── js-data/*.json               # camelCase sample payloads (for the CLI)
 │   └── py-data/*.json               # snake_case sample payloads (for the CLI)
 ├── docs/screenshots/                 # Screenshots used in this README
@@ -478,11 +569,11 @@ npm test        # builds TypeScript, then runs the test suite
 
 ```bash
 cd packages/pdf-gen-py
-pip install -e . reportlab
+pip install -e .   # pulls in reportlab, pillow, and svglib
 python3 -m unittest discover -s tests -v
 ```
 
-Both suites cover: successful PDF generation, required-field validation errors, unregistered-template errors, multi-page pagination, and page-size resolution.
+Both suites cover: successful PDF generation, required-field validation errors, unregistered-template errors, multi-page pagination, page-size resolution, and logo embedding in all four supported image formats (PNG/JPG/WEBP/SVG).
 
 ---
 
@@ -497,6 +588,10 @@ Both suites cover: successful PDF generation, required-field validation errors, 
 **Python output looked "upside down" in an older version** — This was a real bug in the original implementation: reportlab's canvas coordinate system has `y = 0` at the *bottom* of the page, and early code mixed that up with the JS/PDFKit convention of `y = 0` at the *top*. The current `Surface` class in `pdf_gen/surface.py` fixes this by giving templates a consistent top-down coordinate API in both languages.
 
 **Certificate text ran off the page on non-A4 sizes** — Also fixed: the certificate template now reads `surface.page_width` / `pdf.page.width` at render time instead of hardcoding A4's `595.28 × 841.89` points.
+
+**JPEG logo has a black/white box instead of a transparent background** — Expected: JPEG has no alpha channel. Use PNG, WEBP, or SVG for logos that need transparency.
+
+**`npm install` is slow or fails on an unusual platform (image support)** — `sharp` ships prebuilt native binaries per platform; if your platform isn't covered, WEBP images (only) will fail to normalize — PNG, JPEG, and SVG logos are unaffected since they don't go through `sharp`.
 
 ---
 

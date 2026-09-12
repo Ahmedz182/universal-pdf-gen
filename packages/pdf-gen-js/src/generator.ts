@@ -3,12 +3,18 @@ import { PDFConfig, DEFAULT_CONFIG, resolvePageDimensions } from './config';
 import { Theme, mergeTheme } from './theme';
 import { PDFDoc, PDFDocumentCtor } from './types';
 import { drawTable, TableColumn, TableOptions } from './utils/table';
+import { embedImage } from './utils/image';
 
 export interface TemplateData {
   [key: string]: any;
 }
 
-export type TemplateRenderer = (pdf: PDFDoc, config: PDFConfig, data: TemplateData, theme: Theme) => void;
+export type TemplateRenderer = (
+  pdf: PDFDoc,
+  config: PDFConfig,
+  data: TemplateData,
+  theme: Theme
+) => void | Promise<void>;
 
 export type { TableColumn, TableOptions };
 
@@ -36,14 +42,14 @@ export class PDFGenerator {
     this.templates.set(name, renderer);
   }
 
-  useTemplate(templateName: string, data: TemplateData): this {
+  async useTemplate(templateName: string, data: TemplateData): Promise<this> {
     const template = this.templates.get(templateName);
     if (!template) {
       throw new Error(
         `Template "${templateName}" not found. Available: ${Array.from(this.templates.keys()).join(', ') || '(none registered)'}`
       );
     }
-    template(this.doc, this.config, data, this.theme);
+    await template(this.doc, this.config, data, this.theme);
     return this;
   }
 
@@ -61,8 +67,9 @@ export class PDFGenerator {
     return this;
   }
 
-  addImage(imagePath: string, x: number, y: number, width: number, height: number): this {
-    this.doc.image(imagePath, x, y, { width, height });
+  /** Embeds PNG, JPEG, GIF, WEBP, or SVG (file path or Buffer) at the given top-left position. */
+  async addImage(source: string | Buffer, x: number, y: number, width?: number, height?: number): Promise<this> {
+    await embedImage(this.doc, source, x, y, { width, height });
     return this;
   }
 

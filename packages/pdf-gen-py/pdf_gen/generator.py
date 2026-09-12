@@ -6,6 +6,7 @@ from reportlab.pdfgen import canvas as rl_canvas
 from .config import PDFConfig, Theme, default_margins
 from .surface import Surface
 from .utils.table import draw_table
+from .utils.image import draw_image
 
 
 class PDFGenerator:
@@ -79,9 +80,9 @@ class PDFGenerator:
         self.surface.text(x, y, text, **options)
         return self
 
-    def add_image(self, image_path: str, x: float, y_top: float, width: float = None, height: float = None) -> 'PDFGenerator':
-        canvas_y = self.page_height - y_top - (height or 0)
-        self.canvas.drawImage(image_path, x, canvas_y, width=width, height=height)
+    def add_image(self, source: Any, x: float, y_top: float, width: float = None, height: float = None) -> 'PDFGenerator':
+        """Embeds PNG, JPEG, GIF, WEBP, or SVG (file path or bytes) at the given top-left position."""
+        draw_image(self.surface, x, y_top, source, width=width, height=height)
         return self
 
     def add_table(self, columns: List[Dict[str, Any]], rows: List[Any], start_y: Optional[float] = None, **options) -> 'PDFGenerator':

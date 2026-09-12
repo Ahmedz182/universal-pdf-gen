@@ -18,6 +18,7 @@ def generate_invoice():
     pdf.use_template('invoice', {
         'invoice_number': 'INV-2024-001',
         'date': '2024-01-15',
+        'logo': 'examples/assets/logo.svg',
         'company_name': 'ACME Corporation',
         'company_address': '123 Business Ave, New York, NY 10001',
         'client_name': 'John Doe',
@@ -59,6 +60,7 @@ def generate_receipt():
 
     pdf.use_template('receipt', {
         'store_name': 'Coffee Shop',
+        'logo': 'examples/assets/logo.png',
         'store_address': '123 Main Street, Downtown',
         'receipt_number': 'RCP-2024-001',
         'datetime': datetime.now().strftime('%Y-%m-%d %H:%M %p'),
@@ -87,6 +89,7 @@ def generate_certificate():
 
     pdf.use_template('certificate', {
         'title': 'Certificate of Achievement',
+        'logo': 'examples/assets/logo.webp',
         'recipient_name': 'Jane Smith',
         'achievement_text': 'For successfully completing the Advanced PDF Generation course with excellence and dedication',
         'issuer_name': 'PDF Academy',

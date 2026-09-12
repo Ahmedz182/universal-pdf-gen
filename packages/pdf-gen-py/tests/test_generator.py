@@ -5,8 +5,10 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
-from pdf_gen import PDFGenerator, Templates
+from pdf_gen import PDFGenerator, Templates, detect_format
 from pdf_gen.config import PAGE_SIZES
+
+FIXTURES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures')
 
 
 class TestGenerator(unittest.TestCase):
@@ -73,6 +75,31 @@ class TestGenerator(unittest.TestCase):
         a4 = PDFGenerator(page_size='A4')
         letter = PDFGenerator(page_size='Letter')
         self.assertNotEqual(a4.page_width, letter.page_width)
+
+    def test_detect_format_recognizes_png_jpeg_webp_svg(self):
+        self.assertEqual(detect_format(b'\x89PNG\r\n\x1a\n'), 'png')
+        self.assertEqual(detect_format(b'\xff\xd8\xff\xe0'), 'jpeg')
+        self.assertEqual(detect_format(b'RIFF\x00\x00\x00\x00WEBP'), 'webp')
+        self.assertEqual(detect_format(b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'), 'svg')
+
+    def test_embeds_logo_png_jpg_webp_svg_into_invoice(self):
+        for ext in ('png', 'jpg', 'webp', 'svg'):
+            pdf = PDFGenerator()
+            Templates.register(pdf)
+            pdf.use_template('invoice', {
+                'invoice_number': f'LOGO-{ext}',
+                'company_name': 'Acme',
+                'client_name': 'Client',
+                'logo': os.path.join(FIXTURES_DIR, f'logo.{ext}'),
+                'items': [{'description': 'Item', 'quantity': 1, 'unit_price': 10}],
+                'subtotal': 10,
+                'total': 10,
+            })
+
+            path = self._tmp_path(f'logo-{ext}.pdf')
+            pdf.generate(path)
+            self.assertGreater(os.path.getsize(path), 1000, f'expected a non-empty PDF for .{ext} logo')
+            os.remove(path)
 
 
 if __name__ == '__main__':

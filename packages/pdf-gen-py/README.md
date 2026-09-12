@@ -25,6 +25,7 @@ pdf.use_template('invoice', {
     'date': '2024-01-15',
     'company_name': 'ACME Corp',
     'client_name': 'John Doe',
+    'logo': 'logo.svg',  # optional — .png, .jpg, .webp, or .svg
     'items': [
         {'description': 'Service', 'quantity': 1, 'unit_price': 100}
     ],
@@ -96,10 +97,22 @@ data = {
 }
 ```
 
+## Logos (PNG, JPG, WEBP, SVG)
+
+```python
+pdf.use_template('invoice', {
+    'logo': 'logo.svg',  # or .png / .jpg / .webp, bytes, or {'src', 'width', 'height'}
+    # ...
+})
+```
+
+Raster formats (including WEBP) are handled by Pillow via reportlab's `ImageReader` — no conversion needed. SVG is drawn as true vector paths via `svglib` — not rasterized — so it stays crisp. See [Logos & Images in the root README](../../README.md#logos--images) for the full picture, including a side-by-side comparison of all four formats.
+
 ## CLI Usage
 
 ```bash
 python3 -m pdf_gen.cli invoice output.pdf --config invoice-data.json
+python3 -m pdf_gen.cli invoice output.pdf --config invoice-data.json --logo logo.svg
 python3 -m pdf_gen.cli receipt receipt.pdf --config receipt-data.json --page-size A4
 python3 -m pdf_gen.cli certificate cert.pdf --config cert-data.json --orientation portrait
 ```
@@ -128,6 +141,9 @@ pdf.add_table(
 # New page
 pdf.add_page()
 
+# Image (PNG, JPG, WEBP, or SVG — file path or bytes)
+pdf.add_image('logo.svg', x=100, y_top=50, width=80, height=80)
+
 # Write to disk, or get raw bytes for an HTTP response
 pdf.generate('output.pdf')
 pdf_bytes = pdf.generate_bytes()
@@ -150,7 +166,7 @@ pdf = PDFGenerator(page_numbers=True)  # stamps "Page N" at the bottom of every 
 ## Running tests
 
 ```bash
-pip install -e . reportlab
+pip install -e .   # pulls in reportlab, pillow, and svglib
 python3 -m unittest discover -s tests -v
 ```
 

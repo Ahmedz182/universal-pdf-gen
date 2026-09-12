@@ -1,0 +1,4 @@
+<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'>
+  <circle cx='100' cy='100' r='90' fill='#2b5797'/>
+  <text x='100' y='115' font-size='60' fill='white' text-anchor='middle' font-family='Helvetica'>PDF</text>
+</svg>

@@ -3,6 +3,7 @@ from typing import Any, Dict
 from ..config import PDFConfig, Theme
 from ..surface import Surface
 from ..utils.validate import require_fields, to_date, format_currency
+from ..utils.logo import resolve_logo, draw_image
 
 
 def render_receipt(surface: Surface, config: PDFConfig, data: Dict[str, Any], theme: Theme) -> None:
@@ -11,10 +12,16 @@ def render_receipt(surface: Surface, config: PDFConfig, data: Dict[str, Any], th
     left = config.margins['left']
     right = surface.page_width - config.margins['right']
     width = right - left
+    center_x = left + width / 2
     currency = data.get('currency', 'USD')
     date_time = to_date(data.get('datetime'))
 
     y = config.margins['top']
+
+    logo = resolve_logo(data.get('logo'), 44)
+    if logo:
+        draw_image(surface, center_x - logo['width'] / 2, y, logo['src'], width=logo['width'], height=logo['height'])
+        y += logo['height'] + 8
 
     y = surface.text(left, y, data['store_name'], font='Helvetica-Bold', size=18, color=theme.primary, align='center', width=width)
     y += 2
